@@ -7,6 +7,13 @@ import itertools
 import pandas as pd
 from copy import deepcopy
 
+import os
+
+
+
+#added this to counter error: OMP: Error #15: Initializing libiomp5md.dll, but found libiomp5md.dll already initialized.
+os.environ['KMP_DUPLICATE_LIB_OK']='True'
+
 
 class BayesNet:
 
@@ -28,6 +35,8 @@ class BayesNet:
 
         # add edges
         [self.add_edge(e) for e in edges]
+
+
 
         # check for cycles
         if not nx.is_directed_acyclic_graph(self.structure):
@@ -71,12 +80,15 @@ class BayesNet:
         variables = bif_reader.get_variables()
         
         # load edges
-        edges = bif_reader.get_edges()
+        self.edges = bif_reader.get_edges()
 
-        self.create_bn(variables, edges, cpts)
+
+
+        self.create_bn(variables, self.edges, cpts)
+
+
 
     # METHODS THAT MIGHT ME USEFUL -------------------------------------------------------------------------------------
-
     def get_children(self, variable: str) -> List[str]:
         """
         Returns the children of the variable in the graph.
@@ -95,6 +107,7 @@ class BayesNet:
             return self.structure.nodes[variable]['cpt']
         except KeyError:
             raise Exception('Variable not in the BN')
+
 
     def get_all_variables(self) -> List[str]:
         """
@@ -131,6 +144,8 @@ class BayesNet:
                     if not int_graph.has_edge(involved_vars[i], involved_vars[j]):
                         int_graph.add_edge(involved_vars[i], involved_vars[j])
         return int_graph
+
+
 
     @staticmethod
     def get_compatible_instantiations_table(instantiation: pd.Series, cpt: pd.DataFrame):
@@ -184,6 +199,8 @@ class BayesNet:
         nx.draw(self.structure, with_labels=True, node_size=3000)
         plt.show()
 
+
+
     # BASIC HOUSEKEEPING METHODS ---------------------------------------------------------------------------------------
 
     def add_var(self, variable: str, cpt: pd.DataFrame) -> None:
@@ -226,3 +243,4 @@ class BayesNet:
         :param edge: Edge to be deleted (e.g. ('A', 'B')).
         """
         self.structure.remove_edge(edge[0], edge[1])
+
