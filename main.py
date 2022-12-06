@@ -1,65 +1,65 @@
 import BNReasoner as reas
-import networkx as nx
+
 import pandas as pd
-import matplotlib.pyplot as plt
 
 
 
 ''' Group 5 - Start '''
 #filename = 'testing/dog_problem.BIFXML'
+filename = 'testing/lecture_example.BIFXML'
 #filename = 'testing/lecture_example2.BIFXML'
-#filename = 'testing/lecture_example.BIFXML'
-#filename = 'testing/alarm.BIFXML'
-filename = 'testing/alarm1.BIFXML'
-
 
 
 ''' Create bayesian network object '''
 new_BN = reas.BNReasoner(filename)
 #new_BN.bn.draw_structure()
-#inter_gr = new_BN.bn.get_interaction_graph()
-#nx.draw(inter_gr)
-#plt.show()
+
 edges = new_BN.bn.edges
-
-
-cpts = new_BN.bn.get_all_cpts()
-for var, cpt in cpts.items():
-    print(cpt)
 
 
 ''' Use Bayesian Network class functions to test their functionality '''
 ''' NOT NEEDED ANYMORE '''
+#x_y = [['Winter?'], ['Rain?']]
+#x_y = [['Sprinkler?'], ['Wet Grass?']]
+x_y = [['Winter?'], ['Slippery Road?']]
 
 
-query_vars = {'B'}
+d = {'Winter?': True, 'Slippery Road?': True}
+#d = {'Sprinkler?': True, 'Wet Grass?': True}
 
-ev_inst = {'J': True, 'M': True}
-ev_inst = {'J': True}
+#ev = pd.Series(data=d, index=['Winter?', 'Rain?'])
+ev = pd.Series(data=d, index=['Rain?'])
+
+#query_vars = {"Wet Grass?"}
+#query_vars = {"Sprinkler?", "Wet Grass?"}
+query_vars = {"Winter?", "Slippery Road?"}
 
 
-evidence = pd.Series(data=ev_inst, index=ev_inst.keys())
+#new_BN.prune(query_vars, ev)
+#new_BN.bn.draw_structure()
+
+print(new_BN.bn.get_cpt("Sprinkler?"))
+print("------------")
+print(new_BN.bn.get_cpt("Rain?"))
+print("------------")
+print(new_BN.bn.get_cpt("Wet Grass?"))
 
 
 
 
+
+#e=['Slippery Road?']
+e=['Rain?']
+
+print(f'\n{x_y[0]} _|_ {x_y[1]}\t|\t{e} : {new_BN.d_sep(x_y[0], x_y[1], e)}')
+
+new_BN.prune(query_vars, ev)
+new_BN.bn.draw_structure()
 
 cpts = new_BN.bn.get_all_cpts()
 variables = new_BN.bn.get_all_variables()
+#print(f'{variables}')
 
-
-order = 3
-
-#cpt1 = new_BN.bn.get_cpt(Q[0][0])
-#cpt2 = new_BN.bn.get_cpt(Q[1][0])
-
-#mul_cpt = new_BN.multiply_cpts(cpt1, cpt2)
-#print(f'\nCPT1 * CPT2: \n{mul_cpt}')
-
-
-final_cpt = new_BN.marginal_distribution(query_vars, evidence, order)
-
-#print(f'\n\n\n\nFINAL CPT!!\n{final_cpt}')
 
 
 '''vars = []
