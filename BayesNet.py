@@ -181,24 +181,11 @@ class BayesNet:
         :param cpt: cpt to be reduced
         :return: cpt with their original probability value and zero probability for incompatible instantiations
         """
-
-
         var_names = instantiation.index.values
-        print(f'\nvar names: \n{var_names}')
         var_names = [v for v in var_names if v in cpt.columns]  # get rid of excess variables names
-
-        print(f'CPT-->\n{cpt}')
-        print(f'var names:: \n{var_names}')
-
-
-
         if len(var_names) > 0:  # only reduce the factor if the evidence appears in it
             new_cpt = deepcopy(cpt)
             incompat_indices = cpt[var_names] != instantiation[var_names].values
-
-            #print(f'\nnstantiation:\n{instantiation[var_names].values}')
-            print(f'\nincompat_indices:\n{incompat_indices}')
-
             incompat_indices = [any(x[1]) for x in incompat_indices.iterrows()]
             new_cpt.loc[incompat_indices, 'p'] = 0.0
             return new_cpt
@@ -209,7 +196,7 @@ class BayesNet:
         """
         Visualize structure of the BN.
         """
-        nx.draw(self.structure, with_labels=True, node_size=300)
+        nx.draw(self.structure, with_labels=True, node_size=3000)
         plt.show()
 
 
