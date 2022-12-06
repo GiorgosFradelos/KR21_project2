@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<BIF VERSION="0.3">
+   <NETWORK>
+      <NAME>AIMA-Burglar-Alarm</NAME>
+      <!-- Variables -->
+      <VARIABLE TYPE="nature">
+         <NAME>B</NAME>
+         <OUTCOME>true</OUTCOME>
+         <OUTCOME>false</OUTCOME>
+      </VARIABLE>
+      <VARIABLE TYPE="nature">
+         <NAME>E</NAME>
+         <OUTCOME>true</OUTCOME>
+         <OUTCOME>false</OUTCOME>
+      </VARIABLE>
+      <VARIABLE TYPE="nature">
+         <NAME>A</NAME>
+         <OUTCOME>true</OUTCOME>
+         <OUTCOME>false</OUTCOME>
+      </VARIABLE>
+      <VARIABLE TYPE="nature">
+         <NAME>J</NAME>
+         <OUTCOME>true</OUTCOME>
+         <OUTCOME>false</OUTCOME>
+      </VARIABLE>
+      <VARIABLE TYPE="nature">
+         <NAME>M</NAME>
+         <OUTCOME>true</OUTCOME>
+         <OUTCOME>false</OUTCOME>
+      </VARIABLE>
+      <!-- Probability distributions -->
+      <!-- P(B) -->
+      <DEFINITION>
+         <FOR>B</FOR>
+         <TABLE>0.001 0.999</TABLE>
+      </DEFINITION>
+      <!-- P(E) -->
+      <DEFINITION>
+         <FOR>E</FOR>
+         <TABLE>0.002 0.998</TABLE>
+      </DEFINITION>
+      <!-- P(A|B,E) -->
+      <DEFINITION>
+         <FOR>A</FOR>
+         <GIVEN>B</GIVEN>
+         <GIVEN>E</GIVEN>
+         <TABLE>
+            <!--            A     !A -->
+            <!-- B E -->
+            0.95  0.05
+            <!-- B !E -->
+            0.94  0.06
+            <!-- !B E -->
+            0.29  0.71
+            <!-- !B !E -->
+            0.001 0.999
+         </TABLE>
+      </DEFINITION>
+      <!-- P(J|A) -->
+      <DEFINITION>
+         <FOR>J</FOR>
+         <GIVEN>A</GIVEN>
+         <TABLE>
+            <!--          J     !J -->
+            <!-- A -->
+            0.90  0.10
+            <!-- !A -->
+            0.05  0.95
+         </TABLE>
+      </DEFINITION>
+      <!-- P(M|A) -->
+      <DEFINITION>
+         <FOR>M</FOR>
+         <GIVEN>A</GIVEN>
+         <TABLE>
+            <!--          M     !A -->
+            <!-- A -->
+            0.70  0.30
+            <!-- !A -->
+            0.01  0.99
+         </TABLE>
+      </DEFINITION>
+   </NETWORK>
+</BIF>
