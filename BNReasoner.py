@@ -99,6 +99,9 @@ class BNReasoner:
         return X
 
     def summing_out(self, CPT, index_same, list):
+        print(f'\n\n\n\n\n//_--------------------_//')
+        print(f'list summing_out gets as Input:\n{list}')
+        print(f'CPT summing_out gets as Input:\n{CPT}')
         # create the final new CPT without the variables that should be summed out
         new_CPT = CPT.copy()
         for variable in list:
@@ -124,13 +127,19 @@ class BNReasoner:
 
             # set the new_CPT key value to the new p value
 
+
             new_CPT.at[key, 'p'] = p_value_sum
+
+        print(f'\nCPT after zeroing the not needed elements\n{new_CPT}')
 
         for index_CPT in range(len(new_CPT)):
             if new_CPT.iloc[index_CPT]['p'] == 0:
                 new_CPT.drop([index_CPT])
 
-        return
+        new_CPT = new_CPT[new_CPT.p != 0]
+        print(f'//-____________________-//\n\n\n\n\n')
+
+        return new_CPT
 
     def check_double(self, CPT, list, type):
         """
@@ -145,10 +154,18 @@ class BNReasoner:
 
         # create a CPT without p-values and without all the variables that should be summed out
         clean_CPT = CPT.copy()
-
         clean_CPT = clean_CPT.drop(columns=["p"])
+
+        print(f'\n\n\n//-----------------------//')
+        print(f'List: {list}')
+        print(f'CPT tables that check_double gets as input:\n{clean_CPT}')
+
+
         for variable in list:
             clean_CPT = clean_CPT.drop(columns=[variable])
+
+        print(f'\nCPT tables after dropping variable[ {variable[0]} ] collumn:\n{clean_CPT}')
+
 
         # loop trough the length of rows of the clean CPT
         for row_1 in clean_CPT.iloc:
@@ -165,10 +182,17 @@ class BNReasoner:
                         index_same[row_1.name] = [i]
 
         if type == "sum":
+
+            print(f'\nIndex same:\n{index_same}')
+
             new_CPT = self.summing_out(CPT, index_same, list)
+
+            print(f'\nCPT tables after sum out:\n{new_CPT}')
+
         elif type == "max":
             new_CPT = self.maxing_out(CPT, index_same)
 
+        print(f'//______________________//\n\n')
         return new_CPT
 
     def multiplying_factors(self, CPT_1, CPT_2):
@@ -296,6 +320,7 @@ class BNReasoner:
                 if cpts.iloc[row]['p'] == 0:
                     cpts.drop([row])
 
+            cpts = cpts[cpts.p != 0]
             print(f'\ncpts: {cpts}')
 
             self.bn.update_cpt(ev, cpts)
@@ -313,20 +338,46 @@ class BNReasoner:
         # make CPTs of all variables in Pi not in Q
         S = list(self.bn.get_all_cpts().values())
 
+        print(f'\norder:\n{order}')
         for variable in order:
+
             list_cpts = []
             list_goed = []
-            print(f'\nVariable: {variable}')
-            for i in range(0, len(S)-1):
 
-                print(f'\n\nS[{i}]:\n{S[i]}')
+            print(f'\n\n\n---------__________----------')
+            print(f'---------__________----------')
 
-                if S[i] is not None:
-                    columns = list(S[i])
-                    if variable in columns:
-                        list_cpts.append(S[i])
-                    else:
-                        list_goed.append(S[i])
+            # to remove None values in list
+            #S = [i for i in S if i is not None]
+            print(f'\nS: {len(S)}')
+
+            for cpt in S:
+
+                print(f'\n{cpt}')
+
+                columns = list(cpt)
+                if variable in columns:
+                    list_cpts.append(cpt)
+                else:
+                    list_goed.append(cpt)
+
+
+
+            print(f'\n\n\n\t....')
+            print(f'Variable: {variable}')
+
+
+            print(f'\nlist_cpts:')
+            for i in list_cpts:
+                print(f'\n{i}')
+
+
+            print(f'\n\nlist_goed:')
+            for i in list_goed:
+                print(f'\n{i}')
+
+
+
 
             if len(list_cpts) > 0:
                 cpt1 = list_cpts[0]
@@ -335,23 +386,55 @@ class BNReasoner:
                 list_goed.append(list_cpts[0])
 
             if len(list_cpts) > 1:
-                for cpt2 in list_cpts[1:]:
-                    cpt1 = self.multiplying_factors(cpt1, cpt2)
-                final_cpt = cpt1
 
                 print(f'\ncpt1:\n{cpt1}')
 
+
+                for cpt2 in list_cpts[1:]:
+
+                    print(f'\ncpt2:\n{cpt2}')
+
+                    cpt1 = self.multiplying_factors(cpt1, cpt2)
+
+                    print(f'\n\ncpt1*cpt2:\n{cpt1}')
+
+                #print(f'\n\nlist_cpts - take 2:')
+                #for i in list_cpts:
+                #    print(f'\n{i}')
+
+
+
+                final_cpt = cpt1
+
+
+
                 factor = self.check_double(final_cpt, [variable], 'sum')
+                print(f'\nfactor: {factor}')
+
                 list_goed.append(factor)
 
+
             S = list_goed
+            print(f'\nS After factor reduction:')
+            for i in S:
+                print(f'\n{i}')
+
+
+        print(f'\n\nJust before the chaos')
+
 
         for i in range(0, len(S) - 1):
+
+            print(f'\nWhatever: {len(set(list(S[i])).intersection(set(list(S[i]))))}')
+
             if len(set(list(S[i])).intersection(set(list(S[i])))) > 1:
                 cpt_new = self.multiplying_factors(S[i], S[i + 1])
             else:
                 cpt_new = self.multiply_cpts(S[i], S[i + 1])
-            S[i + 1] = cpt_new
+                S[i + 1] = cpt_new
+
+            print(f'\nCPT New:\n{cpt_new}')
+
 
         final_cpt = cpt_new
         final_cpt = final_cpt[final_cpt['p'] != 0]
