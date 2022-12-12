@@ -352,14 +352,35 @@ class BNReasoner:
         return new_CPT
 
 
+
+
+
+
+
+
+
+
+
+
     def multiplying_factors(self, CPT_1, CPT_2):
         CPT_1 = CPT_1.reset_index(drop=True)
         CPT_2 = CPT_2.reset_index(drop=True)
 
+        #print(f'\nCPT1: \n{CPT_1}')
+        #print(f'\nCPT2: \n{CPT_2}')
+
+
         # matching columns
         columns_1 = list(CPT_1)
         columns_2 = list(CPT_2)
+
+
+        #print(f'\ncolumns_1:\n{columns_1}')
+        #print(f'\ncolumns_2:\n{columns_2}')
+
+
         columns = [x for x in columns_1 if x in columns_2]
+        #print(f'\ncolumnss:\n{columns}')
 
         # create a dictionary for the equal rows with same values
         index_same = {}
@@ -374,6 +395,11 @@ class BNReasoner:
         clean_CPT_2 = clean_CPT_2[columns]
         clean_CPT_2 = clean_CPT_2.drop(columns="p")
 
+
+        #print(f'\nclean_CPT_1:\n{clean_CPT_1}')
+        #print(f'\nclean_CPT_2:\n{clean_CPT_2}')
+
+
         # loop trough the length of rows of the clean CPT
         for row_1 in clean_CPT_1.iloc:
 
@@ -384,6 +410,7 @@ class BNReasoner:
                 row_2 = row_2.replace([True], 1.0)
                 row_2 = row_2.replace([False], 0.0)
 
+
                 # compare the different rows
                 if row_1.equals(row_2):
 
@@ -392,6 +419,7 @@ class BNReasoner:
                         index_same[row_1.name].append(row_2.name)
                     else:
                         index_same[row_1.name] = [row_2.name]
+        #print(f'\nindex_saaame:-: \n{index_same}')
 
         new_columns = columns_1.copy()
         new_columns.remove('p')
@@ -402,6 +430,7 @@ class BNReasoner:
 
         merge_CPT_2 = CPT_2.copy()
 
+
         for key, values in index_same.items():
 
             # merge rows
@@ -411,18 +440,128 @@ class BNReasoner:
                 row_2 = merge_CPT_2.iloc[value].drop("p")
 
                 difference = [name for name in new_columns if name not in columns_1]
+                #print(f'Difference:: {difference}')
 
                 new_row = pd.merge(row_1, row_2[difference], left_index=True, right_index=True, how='outer')
+                #print(f'\nrow_1_mergee__: \n{new_row}')
                 new_row = new_row.iloc[:, 0].fillna(new_row.iloc[:, 1])
-                p_1 = CPT_1.iloc[key]["p"]
-                p_2 = CPT_2.iloc[value]["p"]
-                new_p = p_1 * p_2
+                #print(f'\nrow_1_mergee: \n{new_row}')
+
+                p_1_f = CPT_1.iloc[key]["p"]
+                #print(f'\nP_1::: \n {p_1_f}')
+
+                p_2_f = CPT_2.iloc[value]["p"]
+                #print(f'\nP_2::: \n {p_2_f}')
+
+
+
+                new_p = p_1_f * p_2_f
 
                 new_row["p"] = round(new_p, 8)
+                #print(f'\nnew_row: \n {new_row}')
 
                 new_CPT = new_CPT.append(new_row, ignore_index=True)
 
+
+
+
         return new_CPT
+
+    def sum_variable_in_factor(self, factor, variable):
+        cpt = factor.copy()
+        vars = (list(cpt))
+
+        rest_of_vars = []
+        for var in vars:
+            if var != variable:
+                rest_of_vars.append(var)
+
+        same_index = {}
+        cpt = cpt.drop(['p'], axis=1)
+        cpt = cpt.drop([variable], axis=1)
+        #print(f'\nCPTTTT FACTOR: \n{cpt}')
+        factor_cp = cpt.copy()
+
+        for i, row_i in cpt.iterrows():
+            i_vals = row_i.values.tolist()
+
+            for j, row_j in factor_cp.iterrows():
+
+
+
+                j_vals = row_j.values.tolist()
+                flag = False
+
+                #print(f'\nvar: {var}')
+                #print(f'Row I: \n{(row_i.values.tolist())}')
+                #print(f'Row J: \n{(row_j.values.tolist())}')
+                j_vals = row_j.values.tolist()
+
+                flag = True
+                for counter in range(len(i_vals)):
+                    if i_vals[counter] == j_vals[counter]:
+                        continue
+                    else:
+                        flag = False
+
+                #print(f'J value:::: {j}')
+                if flag == True:
+                    if i in same_index:
+                        same_index[i].append(j)
+                    else:
+                        same_index[i] = [j]
+
+
+                '''if row_j.values.tolist() == row_i.values.tolist():
+                    if flag == True:
+                        
+                    continue
+                else:
+                    flag = False
+                    break'''
+
+                #flag = True
+
+
+
+        temp = []
+        res = {}
+        for key, val in same_index.items():
+            if val not in temp:
+                temp.append(val)
+                res[key] = val
+
+        cpt_sum = pd.DataFrame()
+        sum={}
+        for key, val in same_index.items():
+            summed_pr = 0
+            for i in val:
+                #print(f'\n summed pr:: {summed_pr}')
+                summed_pr += factor.iloc[i]['p']
+
+
+            new_p = round(summed_pr, 8)
+
+            clean = factor.iloc[i].drop(['p'])
+
+            #new_row = clean.append(factor.iloc[j])
+            new_row = clean
+            new_row["p"] = new_p
+
+            cpt_sum = cpt_sum.append(new_row, ignore_index=True)
+
+        res = cpt_sum
+        result_df = res.drop_duplicates(subset=['p'], keep='first')
+        #print(f'\nHope Thats it:\n{result_df}')
+
+        return result_df
+
+
+
+
+
+
+
 
 
     def multiply_cpts(self, cpt1, cpt2):
@@ -448,6 +587,7 @@ class BNReasoner:
         final_cpt = new_CPT[new_CPT['p'] != 0]
 
         return final_cpt
+
 
 
     def marginal_distribution(self, Q, evidence, order):
@@ -478,12 +618,9 @@ class BNReasoner:
             cpts = self.bn.get_cpt(ev)
             cpts = self.bn.reduce_factor(evidence, cpts)
 
-            for row in range(len(cpts)):
-                if cpts.iloc[row]['p'] == 0:
-                    cpts.drop([row])
-
+            # remove rows for evidence = false
             cpts = cpts[cpts.p != 0]
-            print(f'\ncpts: {cpts}')
+            print(f'\ncptssss: \n{cpts}')
 
             self.bn.update_cpt(ev, cpts)
 
@@ -558,6 +695,8 @@ class BNReasoner:
 
                     cpt1 = self.multiplying_factors(cpt1, cpt2)
 
+                    cpt1 = self.sum_variable_in_factor(cpt1, variable)
+
                     print(f'\n\ncpt1*cpt2:\n{cpt1}')
 
 
@@ -583,6 +722,8 @@ class BNReasoner:
 
             if len(set(list(S[i])).intersection(set(list(S[i])))) > 1:
                 cpt_new = self.multiplying_factors(S[i], S[i + 1])
+
+
             else:
                 cpt_new = self.multiply_cpts(S[i], S[i + 1])
                 S[i + 1] = cpt_new
@@ -703,6 +844,8 @@ class BNReasoner:
             for i in range(0, len(S) - 1):
                 cpt_new = self.multiply_cpts(S[i], S[i + 1])
 
+
+
                 S[i + 1] = cpt_new
         final_cpt = cpt_new
 
@@ -722,7 +865,7 @@ class BNReasoner:
         newest_cpt = pd.DataFrame()
         newest_cpt = newest_cpt.append(final_row, ignore_index=True)
 
-        print(f'\nNewest CPT:\n{newest_cpt}')
+
 
         collumns2drop = []
 
@@ -737,12 +880,10 @@ class BNReasoner:
 
         collumns2drop = set(collumns2drop)
         collumns2drop = list(collumns2drop)
-        print(f'\ncolumns 2 drop: {collumns2drop}\n')
         for col in collumns2drop:
-            print(f'\ncolumn 2 drop: {col}\n')
             newest_cpt = newest_cpt.drop([col], axis=1)
 
-        print(f"final_cpt {newest_cpt}")
+
         return newest_cpt
 
 

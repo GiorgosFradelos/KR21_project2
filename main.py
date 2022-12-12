@@ -41,8 +41,9 @@ ev = pd.Series(data=evidence, index=index)
 #print(f'{variables}')
 
 order = parameters.order
-mpe = new_BN.MAP_MPE(query_vars, ev, order)
-print(f'\nMost probable explanation:\n{mpe}')
+
+#mpe = new_BN.MAP_MPE(query_vars, ev, order)
+#print(f'\nMost probable explanation:\n{mpe}')
 
 final_cpt = new_BN.marginal_distribution(query_vars, ev, order)
 print(f'\nFINAL CPT!!!:\n{final_cpt}')

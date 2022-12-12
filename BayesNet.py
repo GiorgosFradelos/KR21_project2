@@ -182,12 +182,20 @@ class BayesNet:
         :return: cpt with their original probability value and zero probability for incompatible instantiations
         """
         var_names = instantiation.index.values
+        print(f'\nVar___names:: {var_names}')
         var_names = [v for v in var_names if v in cpt.columns]  # get rid of excess variables names
         if len(var_names) > 0:  # only reduce the factor if the evidence appears in it
             new_cpt = deepcopy(cpt)
             incompat_indices = cpt[var_names] != instantiation[var_names].values
             incompat_indices = [any(x[1]) for x in incompat_indices.iterrows()]
             new_cpt.loc[incompat_indices, 'p'] = 0.0
+
+            # delete evidence column
+            '''for var in var_names:
+                if var in new_cpt.columns:
+                    new_cpt = new_cpt.drop(var, axis=1)'''
+                    #print(f'columnnn:: \n{new_cpt}')
+
             return new_cpt
         else:
             return cpt
