@@ -5,10 +5,18 @@ import pandas as pd
 from BayesNet import BayesNet
 from typing import Union, List, Tuple, Dict, Set
 import networkx as nx
+import itertools
+from itertools import combinations
+
+import parameters
 
 
 
 
+
+def powerset(iterable):
+    s = list(iterable)
+    return itertools.chain.from_iterable(itertools.combinations(s, r) for r in range(len(s) + 1))
 
 class BNReasoner:
     def __init__(self, net: Union[str, BayesNet]):
@@ -33,6 +41,9 @@ class BNReasoner:
 
     def prune(self, Q: Set[str], ev: pd.Series):
 
+        print(f'\nQuery:\n {Q}')
+        print(f'\nEvidence:\n {ev}')
+
         if Q != {}:
             # node prune
             ev_nodes = set(ev.index)
@@ -53,6 +64,26 @@ class BNReasoner:
                 cr_ev = pd.Series(data=cr_d, index=[node])
                 self.bn.update_cpt(child, self.bn.get_compatible_instantiations_table(cr_ev, self.bn.get_cpt(child)))
                 self.bn.update_cpt(child, self.bn.get_cpt(child).drop(columns=[node]))
+
+    def orderWidth(self, ordering: list) -> int:
+        interaction_graph = self.bn.get_interaction_graph()
+        w = 0
+
+        for i in range(1, len(ordering)):
+            d = len([k for k in interaction_graph.neighbors(ordering[i])])
+            w = max(w, d)
+
+            neighbors = interaction_graph.neighbors(ordering[i])
+            interaction_graph.remove_node(ordering[i])
+
+            for j in powerset(neighbors):
+                if len(j) >= 2 and j[-1] is not None:
+                    # print(j)  # for debugging
+                    # print('created edges between', j, f'after removing {ordering[i]}')  # just for debugging.
+                    interaction_graph.add_edge(j[0], j[1])
+
+        return w
+
 
     def d_sep(self, X: List[str], Y: List[str], Z: List[str]):
 
@@ -84,12 +115,7 @@ class BNReasoner:
         print("d-separated")
         return True
 
-        # given set of variables Q and evidence, prunes e &n
-        # -> returns edge, node-pruned BN
 
-
-    def check_independence(self):
-        return True
 
 
 
@@ -98,10 +124,96 @@ class BNReasoner:
         random.shuffle(X)
         return X
 
+    def minDegreeOrder(self, X: list) -> list:
+        interaction_graph = self.bn.get_interaction_graph()
+        pi = list()
+        nodes = dict()
+
+
+        # counts all the edges to see which node has the least
+        for i in X:
+            for j in interaction_graph.neighbors(i):
+                if j in nodes:
+                    nodes[j] += 1
+                else:
+                    nodes[j] = 1
+
+        print(f'\nX: {X}\n')
+        print(f'Nodes: {nodes}\n')
+        print(f'\n')
+
+
+        for k in range(len(X)):
+            var_least_edges = min(nodes, key=nodes.get)  # gets the var with the least edges
+            pi.append(var_least_edges)  # puts it in the output list; lists are ordered so they're good for this
+            nodes.pop(var_least_edges)  # removes this var from the counting dict
+
+            # if there is only 1 neighbour, then just remove the node without creating any more edges
+            if len(list(interaction_graph.neighbors(var_least_edges))) < 2:
+                interaction_graph.remove_node(var_least_edges)
+                continue
+
+            # makes a list of neighbours
+            neighbors = list(interaction_graph.neighbors(var_least_edges))
+            # removes the node from the interaction graph
+            interaction_graph.remove_node(var_least_edges)
+            # iterates over the neighbours to create pairs and then create edges between the nodes
+            for i in powerset(neighbors):
+                if len(i) == 2 and not interaction_graph.has_edge(i[0], i[1]):
+                    interaction_graph.add_edge(i[0], i[1])
+
+        return pi
+
+    def minFillOrder(self, X: list) -> list:
+        interaction_graph = self.bn.get_interaction_graph()
+        pi = list()
+        #nodes = dict()
+
+        X_copy = X.copy()
+
+
+
+        for m in range(len(X)):
+            # calculate the score for every variable
+            nodes = dict()
+            for i in X_copy:
+                # print(i, len(list(interaction_graph.neighbors(i))))
+                degree = len(list(interaction_graph.neighbors(i)))
+                y = 0
+                for j in [j for j in combinations(list(interaction_graph.neighbors(i)), 2)]:
+                    if not interaction_graph.has_edge(j[0], j[1]):
+                        y += 1
+
+                nodes[i] = (((degree - 1) * degree) / 2) - y
+                # print(nodes)
+                # print()
+
+            min_edges_created = min(nodes, key=nodes.get)
+            pi.append(min_edges_created)
+
+            # removes the variable from the list and the dict
+            nodes.pop(min_edges_created)
+            X_copy.remove(min_edges_created)
+
+            # makes a list of neighbours
+            neighbors = list(interaction_graph.neighbors(min_edges_created))
+            # removes the node from the interaction graph
+            interaction_graph.remove_node(min_edges_created)
+            # iterates over the neighbours to create pairs and then create edges between the nodes
+            for k in powerset(neighbors):
+                if len(k) == 2 and not interaction_graph.has_edge(k[0], k[1]):
+                    # print(k)
+                    # print('created edges between', k, f'after removing {min_edges_created}')
+                    interaction_graph.add_edge(k[0], k[1])
+
+        return pi
+
+
+
     def summing_out(self, CPT, index_same, list):
         print(f'\n\n\n\n\n//_--------------------_//')
         print(f'list summing_out gets as Input:\n{list}')
-        print(f'CPT summing_out gets as Input:\n{CPT}')
+        print(f'\nCPT summing_out gets as Input:\n{CPT}')
         # create the final new CPT without the variables that should be summed out
         new_CPT = CPT.copy()
         for variable in list:
@@ -125,9 +237,8 @@ class BNReasoner:
                 # set this value to zero to be able to delete it later
                 new_CPT.at[i[0], 'p'] = 0
 
+
             # set the new_CPT key value to the new p value
-
-
             new_CPT.at[key, 'p'] = p_value_sum
 
         print(f'\nCPT after zeroing the not needed elements\n{new_CPT}')
@@ -137,9 +248,50 @@ class BNReasoner:
                 new_CPT.drop([index_CPT])
 
         new_CPT = new_CPT[new_CPT.p != 0]
+        print(f'\nCPT after reducing rows with p=0\n{new_CPT}')
         print(f'//-____________________-//\n\n\n\n\n')
 
         return new_CPT
+
+    def maxing_out(self, CPT, index_same):
+        """
+        # function to sum all the values from a list out
+        """
+
+        new_CPT = CPT.copy()
+
+        # for variable in list:
+        #     new_CPT = new_CPT.drop(columns=[variable])
+
+        # loop through the keys from the dictionary
+        for key in index_same:
+
+            # pick the p_value from that key
+            p_value_max = CPT.iloc[key]['p']
+
+            # pick the values from the key, so the equal indexes
+            equal_indexes = index_same.get(key)
+
+            # loop through the equal indexes
+            for i in equal_indexes:
+
+                # add the max p-value from this row to the total p-val
+                if CPT.iloc[i]['p'] > p_value_max:
+                    p_value_max = CPT.iloc[i]['p']
+
+                # set this value to zero to be able to delete it later
+                new_CPT.at[i, 'p'] = 0
+
+            # set the new_CPT key value to the new p value
+            new_CPT.at[key, 'p'] = p_value_max
+
+        new_CPT = new_CPT[new_CPT.p != 0]
+        print(f'\nCPT after reducing rows with p=0\n{new_CPT}')
+        print(f'//-____________________-//\n\n\n\n\n')
+
+        return new_CPT
+
+
 
     def check_double(self, CPT, list, type):
         """
@@ -164,7 +316,7 @@ class BNReasoner:
         for variable in list:
             clean_CPT = clean_CPT.drop(columns=[variable])
 
-        print(f'\nCPT tables after dropping variable[ {variable[0]} ] collumn:\n{clean_CPT}')
+        #print(f'\nCPT tables after dropping variable[ {variable[0]} ] collumn:\n{clean_CPT}')
 
 
         # loop trough the length of rows of the clean CPT
@@ -183,17 +335,22 @@ class BNReasoner:
 
         if type == "sum":
 
-            print(f'\nIndex same:\n{index_same}')
+            #print(f'\nIndex same:\n{index_same}')
 
             new_CPT = self.summing_out(CPT, index_same, list)
 
             print(f'\nCPT tables after sum out:\n{new_CPT}')
 
         elif type == "max":
+
+
             new_CPT = self.maxing_out(CPT, index_same)
+
+            print(f'\nCPT tables after max out:\n{new_CPT}')
 
         print(f'//______________________//\n\n')
         return new_CPT
+
 
     def multiplying_factors(self, CPT_1, CPT_2):
         CPT_1 = CPT_1.reset_index(drop=True)
@@ -267,6 +424,7 @@ class BNReasoner:
 
         return new_CPT
 
+
     def multiply_cpts(self, cpt1, cpt2):
         new_CPT = pd.DataFrame()
         columns2 = list(cpt2)
@@ -291,6 +449,7 @@ class BNReasoner:
 
         return final_cpt
 
+
     def marginal_distribution(self, Q, evidence, order):
         '''
         Q = variables in the network BN
@@ -298,7 +457,12 @@ class BNReasoner:
         output = posterior marginal Pr(Q|e)
         '''
 
+        ''' first prune the BN with respect to the evidence and the query in question '''
         self.prune(Q, evidence)
+
+
+        type = parameters.type
+
         not_Q = [x for x in self.bn.get_all_variables() if x not in Q]
         if order == 1:
             order = set(self.minDegreeOrder(not_Q))
@@ -307,10 +471,8 @@ class BNReasoner:
         elif order == 3:
             order = set(self.randomOrder(not_Q))
 
-        # order = set(self.randomOrder(self.bn.get_all_variables()))
-        # order_no_Q = order.difference(Q)
 
-        # get all cpts eliminating rows incompatible with evidence
+        ''' get all cpts eliminating rows incompatible with evidence '''
         for ev in evidence.keys():
 
             cpts = self.bn.get_cpt(ev)
@@ -335,7 +497,10 @@ class BNReasoner:
 
                 self.bn.update_cpt(child, cpts)
 
-        # make CPTs of all variables in Pi not in Q
+
+
+
+        ''' make CPTs of all variables in Pi not in Q '''
         S = list(self.bn.get_all_cpts().values())
 
         print(f'\norder:\n{order}')
@@ -347,8 +512,7 @@ class BNReasoner:
             print(f'\n\n\n---------__________----------')
             print(f'---------__________----------')
 
-            # to remove None values in list
-            #S = [i for i in S if i is not None]
+
             print(f'\nS: {len(S)}')
 
             for cpt in S:
@@ -386,29 +550,21 @@ class BNReasoner:
                 list_goed.append(list_cpts[0])
 
             if len(list_cpts) > 1:
-
                 print(f'\ncpt1:\n{cpt1}')
 
 
                 for cpt2 in list_cpts[1:]:
-
                     print(f'\ncpt2:\n{cpt2}')
 
                     cpt1 = self.multiplying_factors(cpt1, cpt2)
 
                     print(f'\n\ncpt1*cpt2:\n{cpt1}')
 
-                #print(f'\n\nlist_cpts - take 2:')
-                #for i in list_cpts:
-                #    print(f'\n{i}')
-
 
 
                 final_cpt = cpt1
 
-
-
-                factor = self.check_double(final_cpt, [variable], 'sum')
+                factor = self.check_double(final_cpt, [variable], type)
                 print(f'\nfactor: {factor}')
 
                 list_goed.append(factor)
@@ -420,12 +576,10 @@ class BNReasoner:
                 print(f'\n{i}')
 
 
-        print(f'\n\nJust before the chaos')
 
 
         for i in range(0, len(S) - 1):
 
-            print(f'\nWhatever: {len(set(list(S[i])).intersection(set(list(S[i]))))}')
 
             if len(set(list(S[i])).intersection(set(list(S[i])))) > 1:
                 cpt_new = self.multiplying_factors(S[i], S[i + 1])
@@ -442,7 +596,7 @@ class BNReasoner:
         for var in list(cpt_new):
             if var != "p":
                 if var not in Q:
-                    final_cpt = self.check_double(final_cpt, [var], 'sum')
+                    final_cpt = self.check_double(final_cpt, [var], type)
 
         normalize_factor = final_cpt['p'].sum()
         final_cpt['p'] = final_cpt['p'] / normalize_factor
@@ -455,25 +609,141 @@ class BNReasoner:
 
 
 
+    def MAP_MPE(self, Q, evidence, order):
+
+        # if it is a MPE than map_var is the total BN with all the possible values in it
+        self.prune(Q, evidence)
+
+        variables = self.bn.get_all_variables()
+
+        if list(set(variables) - set(Q)) == []:
+            not_Q = variables
+        else:
+            not_Q = list(set(variables) - set(Q))
+
+        if order == 1:
+            order = set(self.minDegreeOrder(not_Q))
+        elif order == 2:
+            order = set(self.minFillOrder(not_Q))
+        elif order == 3:
+            order = set(self.randomOrder(not_Q))
+
+        # add MAP variables last
+        if len(Q) != 0:
+            for i in Q:
+                order.add(i)
+
+        # get all cpts eliminating rows incompatible with evidence
+        for ev in evidence.keys():
+
+            cpts = self.bn.get_cpt(ev)
+            cpts = self.bn.reduce_factor(evidence, cpts)
+
+            for row in range(len(cpts)):
+                if cpts.iloc[row]['p'] == 0:
+                    cpts.drop([row])
+
+            self.bn.update_cpt(ev, cpts)
+
+            for child in self.bn.get_children(ev):
+                cpts = self.bn.get_cpt(child)
+                cpts = self.bn.reduce_factor(evidence, cpts)
+
+                for row in range(len(cpts)):
+                    if cpts.iloc[row]['p'] == 0:
+                        cpts.drop([row])
+
+                self.bn.update_cpt(child, cpts)
+
+        # make CPTs of all variables in Pi not in Q
+        S = list(self.bn.get_all_cpts().values())
+
+        for variable in order:
+
+            list_cpts = []
+            list_goed = []
+
+            for i in range(0, len(S)):
+                columns = list(S[i])
+                if variable in columns:
+                    list_cpts.append(S[i])
+                else:
+                    list_goed.append(S[i])
+
+            if len(list_cpts) == 1:
+                list_goed.append(list_cpts[0])
+
+            if len(list_cpts) > 0:
+                cpt1 = list_cpts[0]
+
+            if len(list_cpts) > 1:
+                for cpt2 in list_cpts[1:]:
+                    cpt1 = self.multiplying_factors(cpt1, cpt2)
+
+                final_cpt = cpt1
+                final_cpt = final_cpt[final_cpt['p'] != 0]
+
+                if Q == {} or variable in Q:
+
+                    cpt = self.check_double(final_cpt, [variable], 'max')
+
+                else:
+                    cpt = self.check_double(final_cpt, [variable], 'sum')
+
+                cpt = cpt[cpt['p'] != 0]
+
+                list_goed.append(cpt)
+
+            S = list_goed
 
 
-    def maxing_out(self):
-        return True
+        if len(S) == 1:
+            cpt_new = S[0]
+        else:
+            for i in range(0, len(S) - 1):
+                cpt_new = self.multiply_cpts(S[i], S[i + 1])
 
-    def factor_multiplication(self):
-        return True
+                S[i + 1] = cpt_new
+        final_cpt = cpt_new
 
-    def ordering(self):
-        return True
+        highest_p = 0
+        final_cpt = final_cpt[final_cpt['p'] != 0]
 
-    def variable_elimination(self):
-        return True
+        length_final_cpt = len(final_cpt)
+        for i in range(length_final_cpt):
 
-    def map(self):
-        return True
+            if final_cpt.iloc[i]["p"] > highest_p:
+                highest_p = final_cpt.iloc[i]["p"]
+                final_row = final_cpt.iloc[i]
 
-    def mep(self):
-        return True
+            # else:
+            #     final_cpt.iloc[i]["p"] = 0
+            # final_cpt = final_cpt.drop(index=[i])
+        newest_cpt = pd.DataFrame()
+        newest_cpt = newest_cpt.append(final_row, ignore_index=True)
+
+        print(f'\nNewest CPT:\n{newest_cpt}')
+
+        collumns2drop = []
+
+        for column in newest_cpt:
+            if column != "p":
+                if column not in Q and Q != {}:
+                    collumns2drop.append(column)
+                    #print(f'\nColumn: \n{column}')
+                    #newest_cpt = newest_cpt.drop(columns=[column])
+                    #print(f'\nNewwest CPT:\n{newest_cpt}')
+
+
+        collumns2drop = set(collumns2drop)
+        collumns2drop = list(collumns2drop)
+        print(f'\ncolumns 2 drop: {collumns2drop}\n')
+        for col in collumns2drop:
+            print(f'\ncolumn 2 drop: {col}\n')
+            newest_cpt = newest_cpt.drop([col], axis=1)
+
+        print(f"final_cpt {newest_cpt}")
+        return newest_cpt
 
 
 
