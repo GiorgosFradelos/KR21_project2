@@ -242,7 +242,7 @@ class BNReasoner:
             new_CPT.at[key, 'p'] = p_value_sum
 
         print(f'\nCPT after zeroing the not needed elements\n{new_CPT}')
-
+        new_CPT = new_CPT.reset_index(drop=True)
         for index_CPT in range(len(new_CPT)):
             if new_CPT.iloc[index_CPT]['p'] == 0:
                 new_CPT.drop([index_CPT])
@@ -316,7 +316,7 @@ class BNReasoner:
         for variable in list:
             clean_CPT = clean_CPT.drop(columns=[variable])
 
-        #print(f'\nCPT tables after dropping variable[ {variable[0]} ] collumn:\n{clean_CPT}')
+        print(f'\nCPT tables after dropping variable[ {variable[0]} ] collumn:\n{clean_CPT}')
 
 
         # loop trough the length of rows of the clean CPT
@@ -335,7 +335,7 @@ class BNReasoner:
 
         if type == "sum":
 
-            #print(f'\nIndex same:\n{index_same}')
+            print(f'\nIndex same:\n{index_same}')
 
             new_CPT = self.summing_out(CPT, index_same, list)
 
@@ -559,11 +559,6 @@ class BNReasoner:
 
 
 
-
-
-
-
-
     def multiply_cpts(self, cpt1, cpt2):
         new_CPT = pd.DataFrame()
         columns2 = list(cpt2)
@@ -650,7 +645,7 @@ class BNReasoner:
             print(f'---------__________----------')
 
 
-            print(f'\nS: {len(S)}')
+            print(f'\nS:__> {len(S)}')
 
             for cpt in S:
 
@@ -695,7 +690,7 @@ class BNReasoner:
 
                     cpt1 = self.multiplying_factors(cpt1, cpt2)
 
-                    cpt1 = self.sum_variable_in_factor(cpt1, variable)
+                    #cpt1 = self.sum_variable_in_factor(cpt1, variable)
 
                     print(f'\n\ncpt1*cpt2:\n{cpt1}')
 
@@ -704,7 +699,7 @@ class BNReasoner:
                 final_cpt = cpt1
 
                 factor = self.check_double(final_cpt, [variable], type)
-                print(f'\nfactor: {factor}')
+                print(f'\nfactor: \n{factor}')
 
                 list_goed.append(factor)
 
@@ -717,18 +712,28 @@ class BNReasoner:
 
 
 
-        for i in range(0, len(S) - 1):
+        print(f'\nadcc: {(set(list(S[0])).intersection(set(list(S[0]))))}')
+
+        print(f'lenS:: {len(S)}')
+        print(f'S:: {(S)}')
+
+        if len(S)>1:
+            for i in range(len(S) - 1):
+                print(f'\n\nInside the for {i}')
+
+                if len(set(list(S[i])).intersection(set(list(S[i])))) > 1:
+                    cpt_new = self.multiplying_factors(S[i], S[i + 1])
 
 
-            if len(set(list(S[i])).intersection(set(list(S[i])))) > 1:
-                cpt_new = self.multiplying_factors(S[i], S[i + 1])
+                else:
+                    cpt_new = self.multiply_cpts(S[i], S[i + 1])
 
-
-            else:
-                cpt_new = self.multiply_cpts(S[i], S[i + 1])
                 S[i + 1] = cpt_new
 
-            print(f'\nCPT New:\n{cpt_new}')
+                print(f'\nCPT New:\n{cpt_new}')
+        else:
+            cpt_new = S[0]
+
 
 
         final_cpt = cpt_new
@@ -779,8 +784,10 @@ class BNReasoner:
 
             cpts = self.bn.get_cpt(ev)
             cpts = self.bn.reduce_factor(evidence, cpts)
-
+            cpts = cpts.reset_index(drop=True)
+            print(f'CPTS: {cpts}')
             for row in range(len(cpts)):
+
                 if cpts.iloc[row]['p'] == 0:
                     cpts.drop([row])
 
@@ -824,11 +831,13 @@ class BNReasoner:
                 final_cpt = cpt1
                 final_cpt = final_cpt[final_cpt['p'] != 0]
 
-                if Q == {} or variable in Q:
 
+                print(f'Q--> {Q}')
+                if Q == [] or variable in Q:
+                    print(f'\n Maxing out')
                     cpt = self.check_double(final_cpt, [variable], 'max')
-
                 else:
+                    print(f'\n summing out')
                     cpt = self.check_double(final_cpt, [variable], 'sum')
 
                 cpt = cpt[cpt['p'] != 0]
@@ -880,8 +889,8 @@ class BNReasoner:
 
         collumns2drop = set(collumns2drop)
         collumns2drop = list(collumns2drop)
-        for col in collumns2drop:
-            newest_cpt = newest_cpt.drop([col], axis=1)
+       # for col in collumns2drop:
+       #     newest_cpt = newest_cpt.drop([col], axis=1)
 
 
         return newest_cpt

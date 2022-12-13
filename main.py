@@ -42,10 +42,18 @@ ev = pd.Series(data=evidence, index=index)
 
 order = parameters.order
 
-#mpe = new_BN.MAP_MPE(query_vars, ev, order)
-#print(f'\nMost probable explanation:\n{mpe}')
-
 final_cpt = new_BN.marginal_distribution(query_vars, ev, order)
 print(f'\nFINAL CPT!!!:\n{final_cpt}')
+
+mpe = new_BN.MAP_MPE(query_vars, ev, order)
+
+print(f'Query vars: {query_vars}')
+if query_vars == []:
+    print(f'\nGiven \n{ev}')
+    print(f'Most probable explanation:\n{mpe}')
+else:
+    print(f'\nGiven \n{ev}')
+    print(f'\nMaximum a-posteriory instantiation:\n{mpe}')
+
 
 
